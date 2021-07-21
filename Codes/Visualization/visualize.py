@@ -13,31 +13,31 @@ from torchvision.utils import make_grid, save_image
 from gradcam.utils import visualize_cam
 from gradcam import GradCAM, GradCAMpp
 
+
 device = 'cuda' if torch.cuda.is_available() else 'cpu'
 
 
 # Model loading
 weights_dir = 'path/to/weight'
 
-
 csv_path = 'path/to/ground_truth'
 df = pd.read_csv(csv_path)
-classes = df['Label'].nunique()
-
 
 img_dir = 'path/to/dir'
 
+from efficientnet_pytorch import EfficientNet
+model = EfficientNet.from_name('efficientnet-b2')
+model._fc = nn.Linear(model._fc.in_features, 2)
+model.to(device)
 
-from torchvision.models import resnet18
-net = resnet18(num_classes=classes)
-configs = [dict(model_type='resnet', arch=net, layer_name='layer4')]
+# Model load
+model.load_state_dict(image_save_point)
 
+configs = [dict(model_type='efficientnet', arch=model, layer_name='_conv_head')]
 
 # Target data
 df_val_test = df[(df['Split'] == 'val') | (df['Split'] == 'test')]
 
-# Model load
-net.load_state_dict(image_save_point)
 
 for img_file in df_val_test['Img_name']:
     img_path = os.path.join(img_dir, img_file)
