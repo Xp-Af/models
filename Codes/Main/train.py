@@ -15,51 +15,12 @@ import os
 import glob
 import datetime
 
-# Arguments
-parser = argparse.ArgumentParser(description= 'PyTorch Training')
-parser.add_argument('--model', default='ResNet18', help='model selection(default: ResNet18)')
-parser.add_argument('--optimizer', default='SGD', help='specify optimzer (default: SGD)')
-parser.add_argument('--batch_size', type=int, default=64, metavar='N', help='input batch size for training (default: 64)')
-parser.add_argument('--val_batch_size', type=int, default=64, metavar='N', help='input batch size for val (default: 1000)')
-parser.add_argument('--image_size', type=int, default=256, help='input image size for traning (default:256)')
-parser.add_argument('--epochs', type=int, default=10, metavar='N', help='number of epochs to train (default: 10)')
-parser.add_argument('--gpu_ids', type=str, default='0', help='gpu ids: e.g. 0  0,1,2, 0,2. use -1 for CPU')
-#parser.add_argument('--target', default='CIFAR', help='target data selection(default: CIFAR)')
-args = parser.parse_args()
-
-# Choose datasets
-#target_data = args.target
-#target_data = 'Pascal_HS'
-
-# Image dir
-#img_dir = '../../../models/Datasets/CIFAR/Images'
-#target_dir = '../../../data/extracted/png-flat-using-crop0.8-small128/'
-#img_dir = '../../../../TRPG/data/cleansed/radiographs/png-crop0.8-256-8bit/'
-#img_dir = '../../../../TRPG/data/cleansed/radiographs/png-crop0.8-512-8bit/'
-
-if args.image_size == 512:
-    img_dir = '../../../../TRPG/data/cleansed/radiographs/png-crop0.8-512-8bit/'
-elif args.image_size == 128:
-    img_dir = '../../../../TRPG/data/cleansed/radiographs/png-crop0.8-128-8bit/'
-else:
-    img_dir = '../../../../TRPG/data/cleansed/radiographs/png-crop0.8-256-8bit/'
-
-# Load csv
-#csvs_path = glob.glob('../../Datasets/pascal_image_corpus/v0.2/data-cut/split/*.csv')
-#csvs_path = glob.glob(csv_dir + '*.csv')
-#csv_path = sorted(csvs_path, key=lambda f: os.stat(f).st_mtime, reverse=True)[0]
-
-#csv_path = '../../../models/Datasets/CIFAR/Split/split_2021-01-14-23-12.csv'
-csv_path = '../../../data/cleansed/documents/echo_merged_split.csv'
-# csv_path = '../../../data/cleansed/documents/echo_merged_split_downsampling.csv'
-
+img_dir = 'path/to/dir'
+csv_path = 'path/to/groundtruth_csv'
 
 # Check categories
 classes = pd.read_csv(csv_path)['Label'].nunique()
 print('Preparing ' + str(classes) + ' categories classification')
-# Define savename
-#datetime = csv_path.rsplit('_', 1)[1].rsplit('.', 1)[0]
-
 
 # Dataset Preparation
 class LoadDataSet(Dataset):
@@ -94,64 +55,23 @@ print('train_data =', len(train_data))
 print('val_data =', len(val_data))
 
 # Define model
-if args.model == 'ResNet':
-    print('ResNet50 is selected for the model')
-    from torchvision.models import resnet50
-    net = resnet50(num_classes=classes)
-elif args.model == 'Inception':
-    print('Inceptionv3 is selected for the model')
-    from torchvision.models import inception_v3
-    net = inception_v3(num_classes=classes)
-elif args.model == 'DenseNet':
-    print('DenseNet121 is selected for the model')
-    from torchvision.models import densenet121
-    net = densenet121(num_classes=classes)
-elif args.model == 'SqueezeNet':
-    print('SqueezeNet is selected for the model')
-    from torchvision.models import squeezenet1_0
-    net = squeezenet1_0(num_classes=classes)
-elif args.model == 'VGG':
-    print('VGG is selected for the model')
-    from torchvision.models import vgg16
-    net = vgg16(num_classes=classes)
-else:
-    print('Use default ResNet18.')
-    from torchvision.models import resnet18
-    net = resnet18(num_classes=classes)
-
+net = resnet18(num_classes=classes)
 
 # Define optimizer
-if args.optimizer == 'Adadelta':
-    print('Adadelta is a selected for the optimizer')
-    optimizer = optim.Adadelta(net.parameters())
-elif args.optimizer == 'Adam':
-    print('Adam is a selected for the optimizer')
-    optimizer = optim.Adam(net.parameters())
-elif args.optimizer == 'RMSprop':
-    print('RMSprop is a selected for the optimizer')
-    optimizer = optim.RMSprop(net.parameters())
-else:
-    print('Use default SGD.')
-    optimizer = optim.SGD(net.parameters(), lr=0.01) 
-
+optimizer = optim.Adam(net.parameters())
 
 # Set data loader
 train_loader = DataLoader(
       dataset=train_data,          # set dataset
-      batch_size=args.batch_size,  # set batch size
+      batch_size=64,  # set batch size
       shuffle=True,                # shuffle or not
       num_workers=0)               # set number of cores
 
 valid_loader = DataLoader(
       dataset=val_data,
-      batch_size=args.val_batch_size,
+      batch_size=64,
       shuffle=True,
       num_workers=0)
-
-
-# Select device
-#device = 'cuda' if torch.cuda.is_available() else 'cpu'
-#net = net.to(device)
 
 # Set GPU IDs
 str_ids = args.gpu_ids.split(',')
@@ -173,13 +93,11 @@ if len(gpu_ids) > 0:
     net.to(gpu_ids[0])
     net = torch.nn.DataParallel(net, gpu_ids)  # multi-GPU
 
-
 # Optimizing
 criterion = nn.CrossEntropyLoss()
-# optimizer = optim.Adam(net.parameters())
 
 ###  Training
-num_epochs = args.epochs
+num_epochs = 100
 
 # Initialize list for plot graph after training
 train_loss_list, train_acc_list, val_loss_list, val_acc_list = [], [], [], []
@@ -206,7 +124,6 @@ for epoch in range(num_epochs):
     avg_train_loss = train_loss / len(train_loader.dataset)  # Average of losses
     avg_train_acc = train_acc / len(train_loader.dataset)    # Average of acc
     # Print log. Note that python starts from 0.
-    #print('epoch [{}/{}], avg_train_loss: {avg_val:.4f}, avg_train_acc: {avg_acc:.4f}'.format(epoch+1, num_epochs, avg_val=avg_train_loss, avg_acc=avg_train_acc))
 
     # ====== Valid mode ======
     net.eval()
@@ -223,7 +140,6 @@ for epoch in range(num_epochs):
     avg_val_acc = val_acc / len(valid_loader.dataset)
     # Print log. Note that python starts from 0.
     print ('epoch [{}/{}], train_loss: {loss:.4f}, val_loss: {val_loss:.4f}, val_acc: {val_acc:.4f}'.format(epoch+1, num_epochs, i+1, loss=avg_train_loss, val_loss=avg_val_loss, val_acc=avg_val_acc))
-    #print('epoch: [{}/{}], avg: train_loss: {train_loss:.4f}, train_acc: {train_acc:.4f}, val_loss: {val_loss:.4f}, val_acc: {val_acc:.4f}'.format(epoch+1, num_epochs, train_loss=avg_train_loss, train_acc=avg_train_acc, val_loss=avg_val_loss, val_acc=avg_val_acc))
 
     # Append list for polt graph after training
     train_loss_list.append(avg_train_loss)
@@ -249,37 +165,3 @@ for epoch in range(num_epochs):
             pass
 
 print ('Training finished !')
-
-dt_now = datetime.datetime.now()
-dt_name = dt_now.strftime('%Y-%m-%d-%H-%M')
-
-# Save weights
-save_weight_dir = '../Weights/Af/'
-os.makedirs(save_weight_dir, exist_ok=True)
-# weights_path = save_weight_dir + args.model + args.optimizer + '_epoch_' + str(epoch_best) + '_val-loss_' + f'{val_loss_best:.4f}' + '_Af_' + dt_name  + '.pt'
-
-device_name = 'GPU-' + '-'.join(map(str, gpu_ids)) if gpu_ids else 'CPU'
-
-basename = args.model + '_' + \
-           args.optimizer + '_' + \
-           'batch-size-' + str(args.batch_size) + '_' + \
-           'image-size-' + str(args.image_size) + '_' + \
-           'epochs-' + str(args.epochs) + '_' + \
-           'val-best-epoch-' + str(epoch_best) + '_' + \
-           'val-loss-' + f'{val_loss_best:.4f}' + '_' + \
-           device_name + '_' + \
-           'Af_' + dt_name
-
-
-weights_path = save_weight_dir + basename + '.pt'
-torch.save(weight_best, weights_path)
-
-
-# Save learning curve
-save_lc_dir = '../../Results/Af/LC/'
-os.makedirs(save_lc_dir, exist_ok=True)
-
-lc_path = save_lc_dir + basename + '.csv' 
-df_lc = pd.DataFrame([train_loss_list, train_acc_list, val_loss_list, val_acc_list], index=['train_loss','train_acc','val_loss','val_acc']).T
-# df_lc.to_csv(save_lc_dir + args.model + args.optimizer + '_Af_' + dt_name + '.csv', index=False)
-df_lc.to_csv(lc_path, index=False)
