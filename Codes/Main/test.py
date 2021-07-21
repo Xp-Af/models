@@ -51,9 +51,12 @@ test_data = LoadTestDataSet(csv_path)
 
 print('test/val data =', len(test_data))
 
-net = resnet18(num_classes=classes)
 
-# Select device
+from efficientnet_pytorch import EfficientNet
+model = EfficientNet.from_name('efficientnet-b2')
+model._fc = nn.Linear(model._fc.in_features, 2)
+model.to(device)
+
 
 # Set GPU IDs
 str_ids = args.gpu_ids.split(',')
