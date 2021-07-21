@@ -54,8 +54,11 @@ val_data   = LoadDataSet(csv_path, 'val')
 print('train_data =', len(train_data))
 print('val_data =', len(val_data))
 
-# Define model
-net = resnet18(num_classes=classes)
+#Define model
+from efficientnet_pytorch import EfficientNet
+model = EfficientNet.from_name('efficientnet-b2')
+model._fc = nn.Linear(model._fc.in_features, 2)
+model.to(device)
 
 # Define optimizer
 optimizer = optim.Adam(net.parameters())
