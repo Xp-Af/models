@@ -21,7 +21,6 @@ weights_path = 'path/to/weights'
 
 # Load csv
 csv_path = 'path/to/groundtruth'
-classes = pd.read_csv(csv_path)['Label'].nunique()
 
 class LoadTestDataSet(Dataset):
     def __init__(self, csv_path):
