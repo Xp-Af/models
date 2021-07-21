@@ -14,55 +14,13 @@ import argparse
 import glob
 import os
 
-
-#target_data = 'Pascal_HS'
-# target_data = 'CIFAR'
-target_data = 'Af'
-
-
-# Arguments
-parser = argparse.ArgumentParser(description= target_data + 'PyTorch Test')
-parser.add_argument('--model', default='ResNet18', help='model selection(default: ResNet18)')
-parser.add_argument('--batch_size', type=int, default=100, metavar='N', help='input batch size for training (default: 100)')
-parser.add_argument('--image_size', type=int, default=256, help='input image size for traning (default:256)')
-parser.add_argument('--gpu_ids', type=str, default='0', help='gpu ids: e.g. 0  0,1,2, 0,2. use -1 for CPU')
-args = parser.parse_args()
-
-
-
-
-# Image dir
-# img_dir = '../../Datasets/CIFAR/Images/'
-# img_dir = '../../../../TRPG/data/cleansed/radiographs/png-crop0.8-256-8bit/'
-# img_dir = '../../../models/Datasets/CIFAR/Images'
-
-
-if args.image_size == 512:
-    img_dir = '../../../../TRPG/data/cleansed/radiographs/png-crop0.8-512-8bit/'
-elif args.image_size == 128:
-    img_dir = '../../../../TRPG/data/cleansed/radiographs/png-crop0.8-128-8bit/'
-else:
-    img_dir = '../../../../TRPG/data/cleansed/radiographs/png-crop0.8-256-8bit/'
-
+img_dir = 'path/to/img'
 
 # Model loading
-weights_dir = '../Weights/' + target_data + '/*'
-weights_path = glob.glob(weights_dir)
-
-# Choose recent one.
-weights_sorted = sorted(weights_path, key=lambda f: os.stat(f).st_mtime, reverse=True)
-image_save_point = torch.load(weights_sorted[0])
-datetime = weights_sorted[0].rsplit('_',1)[1].rsplit('.',1)[0]
-#modelname = weights_sorted[0].split('_',1)[0]
+weights_path = 'path/to/weights'
 
 # Load csv
-# csv_path = '../../Datasets/CIFAR/Split/split_' + datetime + '.csv'
-# csv_path = '../../../models/Datasets/CIFAR/Split/split_2021-01-14-23-12.csv'
-csv_path = '../../../data/cleansed/documents/echo_merged_split.csv'
-#csv_path = '../../../data/cleansed/documents/echo_merged_split_downsampling.csv'
-
-
-#results_csv_dir = '../../Results/' + target_data + '/csv'
+csv_path = 'path/to/groundtruth'
 classes = pd.read_csv(csv_path)['Label'].nunique()
 
 class LoadTestDataSet(Dataset):
@@ -93,39 +51,9 @@ test_data = LoadTestDataSet(csv_path)
 
 print('test/val data =', len(test_data))
 
-
-# Define model
-if args.model == 'ResNet':
-    print('ResNet50 is selected for the model')
-    from torchvision.models import resnet50
-    net = resnet50(num_classes=classes)
-elif args.model == 'Inception':
-    print('Inceptionv3 is selected for the model')
-    from torchvision.models import inception_v3
-    net = inception_v3(num_classes=classes)
-elif args.model == 'DenseNet':
-    print('DenseNet121 is selected for the model')
-    from torchvision.models import densenet121
-    net = densenet121(num_classes=classes)
-elif args.model == 'SqueezeNet':
-    print('SqueezeNet is selected for the model')
-    from torchvision.models import squeezenet1_0
-    net = squeezenet1_0(num_classes=classes)
-elif args.model == 'VGG':
-    print('VGG is selected for the model')
-    from torchvision.models import vgg16
-    net = vgg16(num_classes=classes)
-elif args.model == 'ResNet18':
-    print('Use default ResNet18.')
-    from torchvision.models import resnet18
-    net = resnet18(num_classes=classes)
-else:
-    print('Error occured. No model.')
-
+net = resnet18(num_classes=classes)
 
 # Select device
-#device = 'cuda' if torch.cuda.is_available() else 'cpu'
-#net = net.to(device)
 
 # Set GPU IDs
 str_ids = args.gpu_ids.split(',')
@@ -138,7 +66,6 @@ if len(gpu_ids) > 0: # If args.gpu_ids = '-1' then gpu_ids=[]
         torch.cuda.set_device(gpu_ids[0])
 
 # Get device name: CPU or GPU if use CPU, this line is needed.
-#device = torch.device('cuda:{}'.format(gpu_ids[0])) if gpu_ids else torch.device('cpu')
 device = torch.device('cuda') if gpu_ids else torch.device('cpu')
 
 # Use multi-GPU
@@ -147,14 +74,13 @@ if len(gpu_ids) > 0:
     net.to(gpu_ids[0])
     net = torch.nn.DataParallel(net, gpu_ids)  # multi-GPU
 
-
 # Load weight
 net.load_state_dict(image_save_point)
 
 # Set data loader
 test_loader = DataLoader(
       dataset=test_data,
-      batch_size=args.batch_size,
+      batch_size=64,
       shuffle=False,
       num_workers=0)
 
@@ -190,18 +116,3 @@ with torch.no_grad():
 
     print('inference_accuracy: {} %'.format(100 * test_acc / total))
 print ('inference finished !')
-
-
-df_val_test = pd.read_csv(csv_path)[['Img_name', 'Split']]
-df_merge = pd.merge(df_concat, df_val_test, on = 'Img_name', how = 'left')
-
-
-# Save inference results
-save_dir = '../../Results/' + target_data + '/Likelihood/'
-os.makedirs(save_dir, exist_ok=True)
-
-basename = os.path.splitext(os.path.basename(weights_sorted[0]))[0]
-
-# df_merge.to_csv(save_dir + modelname + '_' + target_data + '_' + datetime + '.csv', index=False)
-df_merge.to_csv(save_dir + basename + '.csv', index=False)
-
